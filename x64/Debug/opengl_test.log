@@ -1,0 +1,8 @@
+﻿  source.cpp
+LINK : warning LNK4098: 'MSVCRT' defaultlib가 다른 라이브러리와 충돌합니다. /NODEFAULTLIB:library를 사용하십시오.
+source.obj : error LNK2019: __imp_glClear 외부 기호(참조 위치: main 함수)에서 확인하지 못했습니다.
+source.obj : error LNK2019: __imp_glClearColor 외부 기호(참조 위치: main 함수)에서 확인하지 못했습니다.
+source.obj : error LNK2019: __imp_glDrawElements 외부 기호(참조 위치: main 함수)에서 확인하지 못했습니다.
+source.obj : error LNK2019: __imp_glGetString 외부 기호(참조 위치: main 함수)에서 확인하지 못했습니다.
+source.obj : error LNK2019: __imp_glViewport 외부 기호(참조 위치: "void __cdecl framebufferSizeCallback(struct GLFWwindow *,int,int)" (?framebufferSizeCallback@@YAXPEAUGLFWwindow@@HH@Z) 함수)에서 확인하지 못했습니다.
+C:\Users\admin1\source\repos\opengl_test\x64\Debug\opengl_test.exe : fatal error LNK1120: 5개의 확인할 수 없는 외부 참조입니다.
