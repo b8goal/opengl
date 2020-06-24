@@ -1,7 +1,9 @@
 #include <GL/glew.h>		
 #include <GLFW/glfw3.h> 
 #include <GL/freeglut.h>
+
 #include "stb-master/stb_image.h"
+#include "glsl/core/shader_loader.h"
 
 #include <string>
 #include <fstream>
@@ -10,16 +12,17 @@
 
 using namespace std;
 
+void framebufferSizeCallback(GLFWwindow* window, int width, int height);
+void errorCallback(int errorCode, const char* errorDescription);
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void renderScene(GLFWwindow* window);
 
 int framebufferWidth, framebufferHeight;
-GLuint triangleVertexArrayObject;
-GLuint triangleShaderProgramID;
+GLuint g_VAO, g_VBO, g_EBO;
+GLuint g_programID;
 GLuint trianglePositionVertexBufferObjectID, triangleColorVertexBufferObjectID;
 GLuint triangleTextureCoordinateBufferObjectID;
 
-//CreateTexture
-//https://r3dux.org/2014/10/how-to-load-an-opengl-texture-using-the-freeimage-library-or-freeimageplus-technically/
-//
 // Method to load an image into a texture using the freeimageplus library. Returns the texture ID or dies trying.
 GLuint CreateTexture(char const* filename)
 {
@@ -28,7 +31,7 @@ GLuint CreateTexture(char const* filename)
 
   stbi_set_flip_vertically_on_load(true);
 
-  GLubyte* textureData = stbi_load("C:/data/test.jpg", &width, &height, &channel, 0);
+  GLubyte* textureData = stbi_load(filename, &width, &height, &channel, 0);
 
   // Generate a texture ID and bind to it
   GLuint tempTextureID;
@@ -62,6 +65,13 @@ GLuint CreateTexture(char const* filename)
 }
 
 bool initShaderProgram() {
+
+  //load and compile shaders
+
+  //char* vertex_shader = (char*)"Shaders\\vertex_shader.glsl";
+  //char* fragment_shader = (char*)"Shaders\\fragment_shader.glsl";
+  //Core::Shader_Loader shaderLoader;
+  //g_programID = shaderLoader.CreateProgram(vertex_shader, fragment_shader);
 
   //#3
   const GLchar* vertexShaderSource =
@@ -116,19 +126,19 @@ bool initShaderProgram() {
   }
 
   //#5
-  triangleShaderProgramID = glCreateProgram();
+  g_programID = glCreateProgram();
 
-  glAttachShader(triangleShaderProgramID, vertexShader);
-  glAttachShader(triangleShaderProgramID, fragmentShader);
+  glAttachShader(g_programID, vertexShader);
+  glAttachShader(g_programID, fragmentShader);
 
-  glLinkProgram(triangleShaderProgramID);
+  glLinkProgram(g_programID);
 
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
 
-  glGetProgramiv(triangleShaderProgramID, GL_LINK_STATUS, &result);
+  glGetProgramiv(g_programID, GL_LINK_STATUS, &result);
   if (!result) {
-    glGetProgramInfoLog(triangleShaderProgramID, 512, NULL, errorLog);
+    glGetProgramInfoLog(g_programID, 512, NULL, errorLog);
     cerr << "ERROR: shader program result error\n" << errorLog << endl;
     return false;
   }
@@ -136,7 +146,7 @@ bool initShaderProgram() {
   return true;
 }
 
-bool defineVertexArrayObject() {
+bool defineTextureObject() {
 
   //#1
   float position[] = {
@@ -172,11 +182,11 @@ bool defineVertexArrayObject() {
   glBufferData(GL_ARRAY_BUFFER, sizeof(textureCoordinate), textureCoordinate, GL_STATIC_DRAW);
 
   //#6
-  glGenVertexArrays(1, &triangleVertexArrayObject);
-  glBindVertexArray(triangleVertexArrayObject);
+  glGenVertexArrays(1, &g_VAO);
+  glBindVertexArray(g_VAO);
 
 
-  GLint positionAttribute = glGetAttribLocation(triangleShaderProgramID, "positionAttribute");
+  GLint positionAttribute = glGetAttribLocation(g_programID, "positionAttribute");
   if (positionAttribute == -1) {
     cerr << "position attribute error" << endl;
     return false;
@@ -186,7 +196,7 @@ bool defineVertexArrayObject() {
 
   glEnableVertexAttribArray(positionAttribute);
 
-  GLint textureCoordinateAttribute = glGetAttribLocation(triangleShaderProgramID, "textureCoordinateAttribute");
+  GLint textureCoordinateAttribute = glGetAttribLocation(g_programID, "textureCoordinateAttribute");
   if (textureCoordinateAttribute == -1) {
     cerr << "Texture Coordinate attribute error" << endl;
     return false;
@@ -200,24 +210,7 @@ bool defineVertexArrayObject() {
   return true;
 }
 
-void framebufferSizeCallback(GLFWwindow* window, int width, int height)
-{
-  glViewport(0, 0, width, height);
 
-  framebufferWidth = width;
-  framebufferHeight = height;
-}
-
-void errorCallback(int errorCode, const char* errorDescription)
-{
-  cerr << "Error: " << errorDescription << endl;
-}
-
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
 
 int main()
 {
@@ -283,9 +276,9 @@ int main()
     std::exit(EXIT_FAILURE);
   }
 
-  if (!defineVertexArrayObject()) {
+  if (!defineTextureObject()) {
 
-    cerr << "Error: Shader Program define defineVertexArrayObject error" << endl;
+    cerr << "Error: Shader Program define defineTextureObject error" << endl;
 
     glfwTerminate();
     std::exit(EXIT_FAILURE);
@@ -293,51 +286,58 @@ int main()
 
   glfwSwapInterval(1);
 
-  double lastTime = glfwGetTime();
-  int numOfFrames = 0;
-  int count = 0;
+  glUseProgram(g_programID);
+  glBindVertexArray(g_VAO);
 
-  glUseProgram(triangleShaderProgramID);
-  glBindVertexArray(triangleVertexArrayObject);
+  GLuint texureId = CreateTexture("C:/data/test.jpg");
 
-  GLuint texureId = CreateTexture("number-board.jpg");
-
-  glUniform1i(glGetUniformLocation(triangleShaderProgramID, "tex"), 0);
+  glUniform1i(glGetUniformLocation(g_programID, "tex"), 0);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texureId);
 
   while (!glfwWindowShouldClose(window)) {
-
-    double currentTime = glfwGetTime();
-    numOfFrames++;
-    if (currentTime - lastTime >= 1.0) {
-
-      printf("%f ms/frame  %d fps \n", 1000.0 / double(numOfFrames), numOfFrames);
-      numOfFrames = 0;
-      lastTime = currentTime;
-    }
-
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-    count++;
-
-    glfwSwapBuffers(window);
-    glfwPollEvents();
-
+    renderScene(window);
   }
 
   glUseProgram(0);
   glBindVertexArray(0);
 
-  glDeleteProgram(triangleShaderProgramID);
+  glDeleteProgram(g_programID);
   glDeleteBuffers(1, &trianglePositionVertexBufferObjectID);
   glDeleteBuffers(1, &triangleColorVertexBufferObjectID);
   glDeleteBuffers(1, &triangleTextureCoordinateBufferObjectID);
-  glDeleteVertexArrays(1, &triangleVertexArrayObject);
+  glDeleteVertexArrays(1, &g_VAO);
   glfwTerminate();
 
   std::exit(EXIT_SUCCESS);
+}
+
+void framebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+  glViewport(0, 0, width, height);
+
+  framebufferWidth = width;
+  framebufferHeight = height;
+}
+
+void errorCallback(int errorCode, const char* errorDescription)
+{
+  cerr << "Error: " << errorDescription << endl;
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+
+void renderScene(GLFWwindow* window)
+{
+  glClearColor(0, 0, 0, 1);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+
+  glfwSwapBuffers(window);
+  glfwPollEvents();
 }
