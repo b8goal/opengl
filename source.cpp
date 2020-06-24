@@ -25,6 +25,30 @@ int framebufferWidth, framebufferHeight;
 GLuint g_VAO, g_VBO, g_EBO;
 GLuint g_shaderProgramID;
 
+typedef struct {
+  float x, y;
+}coordinate_vertex;
+coordinate_vertex top_right = {0.2132f + 0.5f, -0.0597f + 0.5f };
+coordinate_vertex bottom_right = { 0.2640f + 0.5f, 0.3597f + 0.5f };
+coordinate_vertex bottom_left = {-0.2968f + 0.5f, 0.3652f + 0.5f };
+coordinate_vertex top_left = {- 0.2359f + 0.5f, -0.0611f + 0.5f };
+coordinate_vertex top_center = { -0.0117 + 0.5f, -0.0402f + 0.5f };
+
+float vertices[] = {
+  // positions          // colors           // texture coords
+   0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   top_right.x, top_right.y, // top right
+   0.0412f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f, bottom_right.x, bottom_right.y, // bottom right
+  -0.0412f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   bottom_left.x, bottom_left.y, // bottom left
+  -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   top_left.x, top_left.y, // top left 
+   0.0f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   top_center.x, top_center.y,  // top center 
+};
+
+unsigned int indices[] = {
+  0, 1, 4, // first triangle
+  1, 2, 4,  // second triangle
+  2, 3, 4,
+};
+
 int main()
 {
   glfwSetErrorCallback(errorCallback);
@@ -118,31 +142,12 @@ int main()
   std::exit(EXIT_SUCCESS);
 }
 
-void framebufferSizeCallback(GLFWwindow* window, int width, int height)
-{
-  glViewport(0, 0, width, height);
-
-  framebufferWidth = width;
-  framebufferHeight = height;
-}
-
-void errorCallback(int errorCode, const char* errorDescription)
-{
-  cerr << "Error: " << errorDescription << endl;
-}
-
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
-
 GLuint CreateTexture(char const* filename)
 {
   // load image
   int width, height, channel;
 
-  stbi_set_flip_vertically_on_load(true);
+  //stbi_set_flip_vertically_on_load(true);
 
   GLubyte* textureData = stbi_load(filename, &width, &height, &channel, STBI_rgb);
 
@@ -181,7 +186,7 @@ void renderScene(GLFWwindow* window)
   glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, sizeof(indices) / sizeof(float), GL_UNSIGNED_INT, 0);
 
   glfwSwapBuffers(window);
   glfwPollEvents();
@@ -196,31 +201,55 @@ bool initShaderProgram() {
   //Core::Shader_Loader shaderLoader;
   //g_shaderProgramID = shaderLoader.CreateProgram(vertex_shader, fragment_shader);
 
-  const GLchar* vertexShaderSource =
-    "#version 330 core\n"
-    "in vec3 aPos;"
-    "in vec3 aColor;"
-    "in vec2 aTexCoord;"
-    "out vec3 Color;"
-    "out vec2 TexCoord;"
-    "void main()"
-    "{"
-    "gl_Position = vec4(aPos, 1.0F);"
-    "Color = aColor;"
-    "TexCoord = aTexCoord;"
-    "}";
+  const GLchar* vertexShaderSource = R"glsl(
+    #version 330 core
+    in vec3 aPos;
+    in vec3 aColor;
+    in vec2 aTexCoord;
+    out vec3 Color;
+    out vec2 TexCoord;
+    void main()
+    {
+      gl_Position = vec4(aPos, 1.0F);
+      Color = aColor;
+      TexCoord = aTexCoord;
+    }
+)glsl";
 
-  const GLchar* fragmentShaderSource =
-    "#version 330 core\n"
-    "in vec3 Color;"
-    "in vec2 TexCoord;"
-    "out vec4 outColor;"
-    "uniform sampler2D ourTexture;"
-    "void main()"
-    "{"
-    //"outColor = texture(tex, TexCoord) * vec4(Color, 1.0);" 
-    "outColor = texture(ourTexture, TexCoord) * vec4(Color, 1.0);"
-    "}";
+  //"#version 330 core\n"
+  //"in vec3 aPos;"
+  //"in vec3 aColor;"
+  //"in vec2 aTexCoord;"
+  //"out vec3 Color;"
+  //"out vec2 TexCoord;"
+  //"void main()"
+  //"{"
+  //"gl_Position = vec4(aPos, 1.0F);"
+  //"Color = aColor;"
+  //"TexCoord = aTexCoord;"
+  //"}";
+
+  const GLchar* fragmentShaderSource = R"glsl(
+    #version 330 core
+    in vec3 Color;
+    in vec2 TexCoord;
+    out vec4 outColor;
+    uniform sampler2D ourTexture;
+    void main()
+    {
+      outColor = texture(ourTexture, TexCoord) * vec4(Color, 1.0);
+    }
+)glsl";
+
+  //"#version 330 core\n"
+  //"in vec3 Color;"
+  //"in vec2 TexCoord;"
+  //"out vec4 outColor;"
+  //"uniform sampler2D ourTexture;"
+  //"void main()"
+  //"{"
+  //"outColor = texture(ourTexture, TexCoord) * vec4(Color, 1.0);"
+  //"}";
 
   GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
@@ -298,19 +327,6 @@ bool initShaderProgram() {
 
 bool defineTextureObject() {
 
-  float vertices[] = {
-    // positions          // colors           // texture coords
-      0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   1.0f, 1.0f, // top right
-      0.5f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   1.0f, 0.0f, // bottom right
-    -0.5f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 0.0f, // bottom left
-    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 1.0f  // top left 
-  };
-
-  unsigned int indices[] = {
-    0, 1, 3, // first triangle
-    1, 2, 3  // second triangle
-  };
-
   glGenVertexArrays(1, &g_VAO);
   glGenBuffers(1, &g_VBO);
   glGenBuffers(1, &g_EBO);
@@ -324,4 +340,23 @@ bool defineTextureObject() {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   return true;
+}
+
+void framebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+  glViewport(0, 0, width, height);
+
+  framebufferWidth = width;
+  framebufferHeight = height;
+}
+
+void errorCallback(int errorCode, const char* errorDescription)
+{
+  cerr << "Error: " << errorDescription << endl;
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
